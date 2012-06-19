@@ -7,7 +7,7 @@ exports = module.exports = (host, port, options) ->
 exports.Gelfling = class Gelfling
 
   constructor: (@host = 'localhost', @port = 12201, options = {}) ->
-    @maxChunkSize = @_getMaxChunkSize options.maxChunkSize
+    @maxChunkSize = @getMaxChunkSize options.maxChunkSize
     @defaults = options.defaults ? {}
 
 
@@ -35,26 +35,19 @@ exports.Gelfling = class Gelfling
       callback null, @split(compressed)
 
 
-  HEADER_SIZE = 12
+  GELF_ID = [0x1e, 0x0f]
 
   split: (data, chunkSize = @maxChunkSize) ->
     return [data] if data.length <= chunkSize
 
-    msgId = @_newMsgId()
+    msgId = Math.floor(Math.random() * 256) for i in [1..8]
     numChunks = Math.ceil data.length / chunkSize
     console.log "Size is #{data.length}, splitting into #{numChunks} chunks"
     for chunkIx in [0...numChunks]
       dataStart = chunkIx * chunkSize
-      dataEnd = Math.min dataStart + chunkSize, data.length
-      chunk = new Buffer HEADER_SIZE + (dataEnd - dataStart)
-      chunk[0] = 0x1e
-      chunk[1] = 0x0f
-      msgId.copy chunk, 2 # msg ID goes after the Gelf ID
-      chunk[10] = chunkIx
-      chunk[11] = numChunks
-      data.copy chunk, HEADER_SIZE, dataStart, dataEnd
+      dataSlice = Array::slice.call data, dataStart, dataStart + chunkSize
       console.log "Created chunk #{chunkIx}"
-      chunk
+      new Buffer GELF_ID.concat msgId, chunkIx, numChunks, dataSlice
 
 
   GELF_KEYS = ['version', 'host', 'short_message', 'full_message', 'timestamp', 'level', 'facility', 'line', 'file']
@@ -84,14 +77,7 @@ exports.Gelfling = class Gelfling
     gelfMsg
 
 
-  _newMsgId: ->
-    msgId = new Buffer 8
-    msgId.writeUInt32LE Math.random() * 0x100000000, 0, true
-    msgId.writeUInt32LE Math.random() * 0x100000000, 4, true
-    msgId
-
-
-  _getMaxChunkSize: (size = 'wan') ->
+  getMaxChunkSize: (size = 'wan') ->
     switch size.toLowerCase()
       when 'wan' then 1420
       when 'lan' then 8154

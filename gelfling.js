@@ -12,7 +12,7 @@ exports = module.exports = function(host, port, options) {
 };
 
 exports.Gelfling = Gelfling = (function() {
-  var GELF_KEYS, HEADER_SIZE, ILLEGAL_KEYS;
+  var GELF_ID, GELF_KEYS, ILLEGAL_KEYS;
 
   function Gelfling(host, port, options) {
     var _ref;
@@ -21,7 +21,7 @@ exports.Gelfling = Gelfling = (function() {
     if (options == null) {
       options = {};
     }
-    this.maxChunkSize = this._getMaxChunkSize(options.maxChunkSize);
+    this.maxChunkSize = this.getMaxChunkSize(options.maxChunkSize);
     this.defaults = (_ref = options.defaults) != null ? _ref : {};
   }
 
@@ -73,32 +73,27 @@ exports.Gelfling = Gelfling = (function() {
     });
   };
 
-  HEADER_SIZE = 12;
+  GELF_ID = [0x1e, 0x0f];
 
   Gelfling.prototype.split = function(data, chunkSize) {
-    var chunk, chunkIx, dataEnd, dataStart, msgId, numChunks, _i, _results;
+    var chunkIx, dataSlice, dataStart, i, msgId, numChunks, _i, _j, _results;
     if (chunkSize == null) {
       chunkSize = this.maxChunkSize;
     }
     if (data.length <= chunkSize) {
       return [data];
     }
-    msgId = this._newMsgId();
+    for (i = _i = 1; _i <= 8; i = ++_i) {
+      msgId = Math.floor(Math.random() * 256);
+    }
     numChunks = Math.ceil(data.length / chunkSize);
     console.log("Size is " + data.length + ", splitting into " + numChunks + " chunks");
     _results = [];
-    for (chunkIx = _i = 0; 0 <= numChunks ? _i < numChunks : _i > numChunks; chunkIx = 0 <= numChunks ? ++_i : --_i) {
+    for (chunkIx = _j = 0; 0 <= numChunks ? _j < numChunks : _j > numChunks; chunkIx = 0 <= numChunks ? ++_j : --_j) {
       dataStart = chunkIx * chunkSize;
-      dataEnd = Math.min(dataStart + chunkSize, data.length);
-      chunk = new Buffer(HEADER_SIZE + (dataEnd - dataStart));
-      chunk[0] = 0x1e;
-      chunk[1] = 0x0f;
-      msgId.copy(chunk, 2);
-      chunk[10] = chunkIx;
-      chunk[11] = numChunks;
-      data.copy(chunk, HEADER_SIZE, dataStart, dataEnd);
+      dataSlice = Array.prototype.slice.call(data, dataStart, dataStart + chunkSize);
       console.log("Created chunk " + chunkIx);
-      _results.push(chunk);
+      _results.push(new Buffer(GELF_ID.concat(msgId, chunkIx, numChunks, dataSlice)));
     }
     return _results;
   };
@@ -147,15 +142,7 @@ exports.Gelfling = Gelfling = (function() {
     return gelfMsg;
   };
 
-  Gelfling.prototype._newMsgId = function() {
-    var msgId;
-    msgId = new Buffer(8);
-    msgId.writeUInt32LE(Math.random() * 0x100000000, 0, true);
-    msgId.writeUInt32LE(Math.random() * 0x100000000, 4, true);
-    return msgId;
-  };
-
-  Gelfling.prototype._getMaxChunkSize = function(size) {
+  Gelfling.prototype.getMaxChunkSize = function(size) {
     if (size == null) {
       size = 'wan';
     }
