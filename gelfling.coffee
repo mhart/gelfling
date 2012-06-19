@@ -2,9 +2,9 @@ zlib = require 'zlib'
 dgram = require 'dgram'
 
 exports = module.exports = (host, port, options) ->
-  new Gelfer host, port, options
+  new Gelfling host, port, options
 
-exports.Gelfer = class Gelfer
+exports.Gelfling = class Gelfling
 
   constructor: (@host = 'localhost', @port = 12201, options = {}) ->
     @maxChunkSize = @_getMaxChunkSize options.maxChunkSize
