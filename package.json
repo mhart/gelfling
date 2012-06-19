@@ -1,11 +1,11 @@
 {
   "author": "Michael Hart <michael.hart.au@gmail.com> (http://twitter.com/hichaelmart)",
-  "name": "gelf",
+  "name": "gelfling",
   "description": "Create and send GELF (Graylog2) messages, including chunking",
-  "version": "0.0.1",
-  "homepage": "https://github.com/mhart/node-gelf",
+  "version": "0.0.2",
+  "homepage": "https://github.com/mhart/gelfling",
   "repository": {
-    "url": "https://github.com/mhart/node-gelf.git"
+    "url": "https://github.com/mhart/gelfling.git"
   },
-  "main": "gelf.js"
+  "main": "gelfling.js"
 }
