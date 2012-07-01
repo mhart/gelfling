@@ -1,5 +1,6 @@
 zlib = require 'zlib'
 dgram = require 'dgram'
+crypto = require 'crypto'
 
 exports = module.exports = (host, port, options) ->
   new Gelfling host, port, options
@@ -40,13 +41,11 @@ exports.Gelfling = class Gelfling
   split: (data, chunkSize = @maxChunkSize) ->
     return [data] if data.length <= chunkSize
 
-    msgId = Math.floor(Math.random() * 256) for i in [1..8]
+    msgId = Array::slice.call crypto.randomBytes(8)
     numChunks = Math.ceil data.length / chunkSize
-    console.log "Size is #{data.length}, splitting into #{numChunks} chunks"
     for chunkIx in [0...numChunks]
       dataStart = chunkIx * chunkSize
       dataSlice = Array::slice.call data, dataStart, dataStart + chunkSize
-      console.log "Created chunk #{chunkIx}"
       new Buffer GELF_ID.concat msgId, chunkIx, numChunks, dataSlice
 
 
