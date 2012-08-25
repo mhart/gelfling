@@ -14,6 +14,22 @@
     return new Gelfling(host, port, options);
   };
 
+  exports.EMERGENCY = 0;
+
+  exports.ALERT = 1;
+
+  exports.CRITICAL = 2;
+
+  exports.ERROR = 3;
+
+  exports.WARNING = 4;
+
+  exports.NOTICE = 5;
+
+  exports.INFO = 6;
+
+  exports.DEBUG = 7;
+
   exports.Gelfling = Gelfling = (function() {
     var GELF_ID, GELF_KEYS, ILLEGAL_KEYS;
 
@@ -37,7 +53,7 @@
       if (Buffer.isBuffer(data)) {
         data = [data];
       }
-      if (!(data instanceof Array)) {
+      if (!Array.isArray(data)) {
         return this.encode(this.convert(data), function(err, chunks) {
           if (err) {
             return callback(err);

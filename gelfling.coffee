@@ -5,6 +5,17 @@ crypto = require 'crypto'
 exports = module.exports = (host, port, options) ->
   new Gelfling host, port, options
 
+# From https://github.com/Graylog2/graylog2-docs/wiki/GELF
+# and https://github.com/Graylog2/gelf-php/blob/master/GELFMessage.php
+exports.EMERGENCY = 0
+exports.ALERT = 1
+exports.CRITICAL = 2
+exports.ERROR = 3
+exports.WARNING = 4
+exports.NOTICE = 5
+exports.INFO = 6
+exports.DEBUG = 7
+
 exports.Gelfling = class Gelfling
 
   constructor: (@host = 'localhost', @port = 12201, options = {}) ->
@@ -15,7 +26,7 @@ exports.Gelfling = class Gelfling
   send: (data, callback = ->) ->
     data = [data] if Buffer.isBuffer data
 
-    unless data instanceof Array
+    unless Array.isArray data
       return @encode @convert(data), (err, chunks) =>
         return callback err if err
         @send chunks, callback
