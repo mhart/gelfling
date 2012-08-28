@@ -34,7 +34,7 @@
     var GELF_ID, GELF_KEYS, ILLEGAL_KEYS;
 
     function Gelfling(host, port, options) {
-      var _ref;
+      var _ref, _ref1;
       this.host = host != null ? host : 'localhost';
       this.port = port != null ? port : 12201;
       if (options == null) {
@@ -42,10 +42,12 @@
       }
       this.maxChunkSize = this.getMaxChunkSize(options.maxChunkSize);
       this.defaults = (_ref = options.defaults) != null ? _ref : {};
+      this.udpClient = dgram.createSocket('udp4');
+      this.udpClient.on('error', (_ref1 = options.errHandler) != null ? _ref1 : console.error);
     }
 
     Gelfling.prototype.send = function(data, callback) {
-      var chunk, remaining, udpClient, _i, _len, _results,
+      var chunk, remaining, _i, _len, _results,
         _this = this;
       if (callback == null) {
         callback = function() {};
@@ -61,17 +63,15 @@
           return _this.send(chunks, callback);
         });
       }
-      udpClient = dgram.createSocket('udp4');
       remaining = data.length;
       _results = [];
       for (_i = 0, _len = data.length; _i < _len; _i++) {
         chunk = data[_i];
-        _results.push(udpClient.send(chunk, 0, chunk.length, this.port, this.host, function(err) {
+        _results.push(this.udpClient.send(chunk, 0, chunk.length, this.port, this.host, function(err) {
           if (err) {
             return callback(err);
           }
           if (--remaining === 0) {
-            udpClient.close();
             return callback();
           }
         }));

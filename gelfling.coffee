@@ -21,7 +21,8 @@ exports.Gelfling = class Gelfling
   constructor: (@host = 'localhost', @port = 12201, options = {}) ->
     @maxChunkSize = @getMaxChunkSize options.maxChunkSize
     @defaults = options.defaults ? {}
-
+    @udpClient = dgram.createSocket 'udp4'
+    @udpClient.on 'error', options.errHandler ? console.error
 
   send: (data, callback = ->) ->
     data = [data] if Buffer.isBuffer data
@@ -31,13 +32,11 @@ exports.Gelfling = class Gelfling
         return callback err if err
         @send chunks, callback
 
-    udpClient = dgram.createSocket 'udp4'
     remaining = data.length
     for chunk in data
-      udpClient.send chunk, 0, chunk.length, @port, @host, (err) ->
+      @udpClient.send chunk, 0, chunk.length, @port, @host, (err) ->
         return callback err if err
         if --remaining is 0
-          udpClient.close()
           callback()
 
 
