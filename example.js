@@ -11,9 +11,6 @@ var msg = {
   //line: 345
 }
 
-var client = gelfling('log.adslot.com', 12201, { defaults: { line: function(msg) { return msg.id } } })
-client.send(msg, function(err) {
-  console.log("all done")
-  client.close()
-})
+var client = gelfling('localhost', 12201, { defaults: { line: function(msg) { return msg.id } } })
+client.send(msg, function(err) { console.log("all done") })
 

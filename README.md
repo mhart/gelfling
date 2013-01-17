@@ -12,8 +12,6 @@ client.send('Message', function(err) { console.log('Sent') })
 
 client.send({ short_message: 'Message', facility: 'myApp', level: gelfling.INFO })
 
-client.send('Close when finally done', function() { client.close() })
-
 var complexClient = gelfling('localhost', 12201, {
   defaults: {
     facility: 'myApp',

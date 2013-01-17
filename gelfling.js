@@ -16,14 +16,14 @@ function Gelfling(host, port, options) {
 
   this.maxChunkSize = this.getMaxChunkSize(options.maxChunkSize)
   this.defaults = options.defaults || {}
-  this.udpClient = dgram.createSocket('udp4')
-  this.udpClient.on('error', options.errHandler || console.error)
+  this.errHandler = options.errHandler || console.error
+  this.keepAlive = options.keepAlive
 }
 
 Gelfling.prototype.send = function(data, callback) {
   if (callback == null) callback = function() {}
   if (Buffer.isBuffer(data)) data = [data]
-  var remaining, i, that = this
+  var udpClient, remaining, i, that = this
 
   if (!Array.isArray(data))
     return this.encode(this.convert(data), function(err, chunks) {
@@ -31,17 +31,26 @@ Gelfling.prototype.send = function(data, callback) {
       that.send(chunks, callback)
     })
 
+  if (!this.keepAlive || !this.udpClient) {
+    udpClient = dgram.createSocket('udp4')
+    udpClient.on('error', this.errHandler)
+    if (this.keepAlive) this.udpClient = udpClient
+  } else {
+    udpClient = this.udpClient
+  }
   remaining = data.length
   function checkDone(err) {
-    if (err) return callback(err)
-    if (--remaining === 0) callback()
+    if (err || --remaining === 0) {
+      if (!that.keepAlive) udpClient.close()
+      callback(err)
+    }
   }
   for (i = 0; i < data.length; i++)
-    this.udpClient.send(data[i], 0, data[i].length, this.port, this.host, checkDone)
+    udpClient.send(data[i], 0, data[i].length, this.port, this.host, checkDone)
 }
 
 Gelfling.prototype.close = function() {
-  return this.udpClient.close()
+  if (this.udpClient) this.udpClient.close()
 }
 
 Gelfling.prototype.encode = function(msg, callback) {
