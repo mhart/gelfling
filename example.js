@@ -1,7 +1,7 @@
-var gelfling = require('./gelfling.js')
+var gelfling = require('./') // require('gelfling')
 
 var msg = {
-  short_message: "Message at " + +new Date,
+  short_message: "Message at " + (+new Date),
   full_message: ("start/" + new Buffer(20000).toString('base64') + "/end").replace(/\//g, "\n"),
   id: 34,
   some_other_field: "Dude!\nIt's a multi line\nMessage!",
@@ -11,7 +11,9 @@ var msg = {
   //line: 345
 }
 
-//gelfling().send("Message at #{+new Date}", (err) -> console.log "all done")
-gelfling('localhost', 12201, { defaults: { line: function(msg) { return msg.id } } })
-  .send(msg, function(err) { console.log("all done") })
+var client = gelfling('log.adslot.com', 12201, { defaults: { line: function(msg) { return msg.id } } })
+client.send(msg, function(err) {
+  console.log("all done")
+  client.close()
+})
 
