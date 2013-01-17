@@ -40,6 +40,10 @@ exports.Gelfling = class Gelfling
           callback()
 
 
+  close: ->
+    @udpClient.close()
+
+
   encode: (msg, callback = ->) ->
     zlib.gzip new Buffer(JSON.stringify msg), (err, compressed) =>
       return callback err if err
