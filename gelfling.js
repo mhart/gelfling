@@ -1,5 +1,6 @@
 var zlib   = require('zlib')
 var dgram  = require('dgram')
+var net    = require('net')
 var crypto = require('crypto')
 
 // From https://github.com/Graylog2/graylog2-docs/wiki/GELF
@@ -18,17 +19,73 @@ function Gelfling(host, port, options) {
   this.defaults = options.defaults || {}
   this.errHandler = options.errHandler || console.error
   this.keepAlive = options.keepAlive
+  this.tcp = !!options.tcp
 }
 
-Gelfling.prototype.send = function(data, callback) {
-  if (callback == null) callback = function() {}
+function callOnce(fn) {
+  if (fn == null) return function() {}
+  var called = false
+  return function() {
+    if (! called) {
+      called = true
+      return fn.apply(this, arguments)
+    }
+  }
+}
+
+Gelfling.prototype._connectTcpClient = function(callback) {
+  if (this.tcpConnected || this.tcpConnecting) return
+  var that = this
+  callback = callOnce(callback)
+  this.tcpConnecting = true
+  this.tcpClient = net.connect(this.port, this.host)
+  this.tcpClient
+    .on('connect', function() {
+      that.tcpConnecting = false
+      that.tcpConnected = true
+      callback()
+    })
+    .on('error', function(err) {
+      that.tcpConnecting = false
+      that.tcpConnected = false
+      callback(err)
+    })
+    .on('close', function() {
+      that.tcpConnecting = false
+      that.tcpConnected = false
+    })
+    .on('end', function() {
+      that.tcpConnecting = false
+      that.tcpConnected = false
+    })
+}
+
+Gelfling.prototype._sendTcp = function(data, callback) {
+  var that = this
+  var retrySend = function(err) {
+    if (err) return callback(err)
+    that._sendTcp(data, callback)
+  }
+  if (this.tcpConnected) {
+    // No GZIP for TCP. See: 
+    //   https://github.com/Moocar/logback-gelf#tcp
+    //   https://github.com/Graylog2/graylog2-server/issues/127
+    //   https://github.com/t0xa/gelfj/pull/61
+    this.tcpClient.write(JSON.stringify(this.convert(data)) + '\0', callback)
+  } else if (this.tcpConnecting)
+    setTimeout(retrySend, 10)
+  else
+    this._connectTcpClient(retrySend)
+}
+
+Gelfling.prototype._sendUdp = function(data, callback) {
   if (Buffer.isBuffer(data)) data = [data]
   var udpClient, remaining, i, that = this
 
   if (!Array.isArray(data))
     return this.encode(this.convert(data), function(err, chunks) {
       if (err) return callback(err)
-      that.send(chunks, callback)
+      that._sendUdp(chunks, callback)
     })
 
   if (!this.keepAlive || !this.udpClient) {
@@ -49,7 +106,16 @@ Gelfling.prototype.send = function(data, callback) {
     udpClient.send(data[i], 0, data[i].length, this.port, this.host, checkDone)
 }
 
+Gelfling.prototype.send = function(data, callback) {
+  if (callback == null) callback = function() {}
+  if (this.tcp)
+    this._sendTcp(data, callback)
+  else
+    this._sendUdp(data, callback)
+}
+
 Gelfling.prototype.close = function() {
+  if (this.tcpClient) this.tcpClient.end()
   if (this.udpClient) this.udpClient.close()
 }
 
