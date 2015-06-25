@@ -71,7 +71,7 @@ Gelfling.prototype._sendTcp = function(data, callback) {
     //   https://github.com/Moocar/logback-gelf#tcp
     //   https://github.com/Graylog2/graylog2-server/issues/127
     //   https://github.com/t0xa/gelfj/pull/61
-    this.tcpClient.write(JSON.stringify(this.convert(data)) + '\0', callback)
+    this.tcpClient.write(JSON.stringify(data) + '\0', callback)
   } else if (this.tcpConnecting)
     setTimeout(retrySend, 10)
   else
@@ -83,7 +83,7 @@ Gelfling.prototype._sendUdp = function(data, callback) {
   var udpClient, remaining, i, that = this
 
   if (!Array.isArray(data))
-    return this.encode(this.convert(data), function(err, chunks) {
+    return this.encode(data, function(err, chunks) {
       if (err) return callback(err)
       that._sendUdp(chunks, callback)
     })
@@ -108,10 +108,9 @@ Gelfling.prototype._sendUdp = function(data, callback) {
 
 Gelfling.prototype.send = function(data, callback) {
   if (callback == null) callback = function() {}
-  if (this.tcp)
-    this._sendTcp(data, callback)
-  else
-    this._sendUdp(data, callback)
+
+  var send = this.tcp ? this._sendTcp : this._sendUdp
+  send.call(this, this.convert(data), callback)
 }
 
 Gelfling.prototype.close = function() {
