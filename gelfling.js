@@ -31,22 +31,30 @@ Gelfling.prototype.send = function(data, callback) {
       that.send(chunks, callback)
     })
 
+  function doSend(){
+    remaining = data.length
+    function checkDone(err) {
+      if (err || --remaining === 0) {
+        if (!that.keepAlive) udpClient.close()
+        callback(err)
+      }
+    }
+    for (i = 0; i < data.length; i++)
+      udpClient.send(data[i], 0, data[i].length, that.port, that.host, checkDone)
+  }
+
   if (!this.keepAlive || !this.udpClient) {
     udpClient = dgram.createSocket('udp4')
     udpClient.on('error', this.errHandler)
     if (this.keepAlive) this.udpClient = udpClient
+
+    udpClient.bind({exclusive: true}, function() {
+      doSend();
+    });
   } else {
     udpClient = this.udpClient
+    doSend();
   }
-  remaining = data.length
-  function checkDone(err) {
-    if (err || --remaining === 0) {
-      if (!that.keepAlive) udpClient.close()
-      callback(err)
-    }
-  }
-  for (i = 0; i < data.length; i++)
-    udpClient.send(data[i], 0, data[i].length, this.port, this.host, checkDone)
 }
 
 Gelfling.prototype.close = function() {
