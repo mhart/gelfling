@@ -18,6 +18,7 @@ function Gelfling(host, port, options) {
   this.defaults = options.defaults || {}
   this.errHandler = options.errHandler || console.error
   this.keepAlive = options.keepAlive
+  this.compress = options.compress == null ? true : options.compress
 }
 
 Gelfling.prototype.send = function(data, callback) {
@@ -56,7 +57,13 @@ Gelfling.prototype.close = function() {
 Gelfling.prototype.encode = function(msg, callback) {
   if (callback == null) callback = function() {}
   var that = this
-  zlib.gzip(new Buffer(JSON.stringify(msg)), function(err, compressed) {
+  var buffer = new Buffer(JSON.stringify(msg));
+
+  if(!this.compress){
+    return callback(null, this.split(buffer));
+  }
+
+  zlib.gzip(buffer, function(err, compressed) {
     if (err) return callback(err)
     callback(null, that.split(compressed))
   })
