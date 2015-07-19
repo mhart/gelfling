@@ -1,13 +1,12 @@
-var zlib   = require('zlib')
-var dgram  = require('dgram')
+var zlib = require('zlib')
+var dgram = require('dgram')
 var crypto = require('crypto')
 
 // From https://github.com/Graylog2/graylog2-docs/wiki/GELF
 // and https://github.com/Graylog2/gelf-php/blob/master/GELFMessage.php
-var GELF_ID      = [0x1e, 0x0f]
-  , GELF_KEYS    = ['version', 'host', 'short_message', 'full_message',
-                    'timestamp', 'level', 'facility', 'line', 'file']
-  , ILLEGAL_KEYS = ['_id']
+var GELF_ID = [0x1e, 0x0f]
+var GELF_KEYS = ['version', 'host', 'short_message', 'full_message', 'timestamp', 'level', 'facility', 'line', 'file']
+var ILLEGAL_KEYS = ['_id']
 
 function Gelfling(host, port, options) {
   this.host = host != null ? host : 'localhost'
@@ -18,17 +17,18 @@ function Gelfling(host, port, options) {
   this.defaults = options.defaults || {}
   this.errHandler = options.errHandler || console.error
   this.keepAlive = options.keepAlive
+  this.compress = options.compress == null ? true : options.compress
 }
 
 Gelfling.prototype.send = function(data, callback) {
   if (callback == null) callback = function() {}
   if (Buffer.isBuffer(data)) data = [data]
-  var udpClient, remaining, i, that = this
+  var udpClient, remaining, i, self = this
 
   if (!Array.isArray(data))
     return this.encode(this.convert(data), function(err, chunks) {
       if (err) return callback(err)
-      that.send(chunks, callback)
+      self.send(chunks, callback)
     })
 
   if (!this.keepAlive || !this.udpClient) {
@@ -41,7 +41,7 @@ Gelfling.prototype.send = function(data, callback) {
   remaining = data.length
   function checkDone(err) {
     if (err || --remaining === 0) {
-      if (!that.keepAlive) udpClient.close()
+      if (!self.keepAlive) udpClient.close()
       callback(err)
     }
   }
@@ -55,10 +55,14 @@ Gelfling.prototype.close = function() {
 
 Gelfling.prototype.encode = function(msg, callback) {
   if (callback == null) callback = function() {}
-  var that = this
-  zlib.gzip(new Buffer(JSON.stringify(msg)), function(err, compressed) {
+  var self = this
+  var buffer = new Buffer(JSON.stringify(msg))
+
+  if (!this.compress) return callback(null, this.split(buffer))
+
+  zlib.gzip(buffer, function(err, compressed) {
     if (err) return callback(err)
-    callback(null, that.split(compressed))
+    callback(null, self.split(compressed))
   })
 }
 
@@ -66,10 +70,9 @@ Gelfling.prototype.split = function(data, chunkSize) {
   if (chunkSize == null) chunkSize = this.maxChunkSize
   if (data.length <= chunkSize) return [data]
 
-  var msgId     = [].slice.call(crypto.randomBytes(8))
-    , numChunks = Math.ceil(data.length / chunkSize)
-    , chunks    = new Array(numChunks)
-    , chunkIx, dataSlice, dataStart
+  var msgId = [].slice.call(crypto.randomBytes(8)),
+    numChunks = Math.ceil(data.length / chunkSize),
+    chunks = new Array(numChunks), chunkIx, dataSlice, dataStart
 
   for (chunkIx = 0; chunkIx < numChunks; chunkIx++) {
     dataStart = chunkIx * chunkSize
@@ -81,11 +84,9 @@ Gelfling.prototype.split = function(data, chunkSize) {
 }
 
 Gelfling.prototype.convert = function(msg) {
-  if (typeof msg !== 'object') msg = { short_message: msg }
+  if (typeof msg !== 'object') msg = {short_message: msg}
 
-  var gelfMsg  = {}
-    , defaults = this.defaults
-    , key, val
+  var gelfMsg = {}, defaults = this.defaults, key, val
 
   for (key in defaults) {
     if (!defaults.hasOwnProperty(key)) continue
@@ -114,7 +115,7 @@ Gelfling.prototype.getMaxChunkSize = function(size) {
   switch (size.toLowerCase()) {
     case 'wan': return 1420
     case 'lan': return 8154
-    default:    return parseInt(size, 10)
+    default: return parseInt(size, 10)
   }
 }
 
