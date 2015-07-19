@@ -58,8 +58,7 @@ Gelfling.prototype.encode = function(msg, callback) {
   var self = this
   var buffer = new Buffer(JSON.stringify(msg))
 
-  if(!this.compress)
-    return callback(null, this.split(buffer))
+  if (!this.compress) return callback(null, this.split(buffer))
 
   zlib.gzip(buffer, function(err, compressed) {
     if (err) return callback(err)
