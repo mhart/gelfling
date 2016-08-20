@@ -23,7 +23,7 @@ function Gelfling(host, port, options) {
 Gelfling.prototype.send = function(data, callback) {
   if (callback == null) callback = function() {}
   if (Buffer.isBuffer(data)) data = [data]
-  var udpClient, remaining, i, self = this
+  var udpClient, remaining, i, self = this, cbDone = false
 
   if (!Array.isArray(data))
     return this.encode(this.convert(data), function(err, chunks) {
@@ -42,7 +42,10 @@ Gelfling.prototype.send = function(data, callback) {
   function checkDone(err) {
     if (err || --remaining === 0) {
       if (!self.keepAlive) udpClient.close()
-      callback(err)
+      if (!cbDone) {
+        cbDone = true;
+        callback(err)
+      }
     }
   }
   for (i = 0; i < data.length; i++)
